@@ -5,6 +5,7 @@ from pyspark.sql.types import *
 spark = SparkSession.builder.appName("SparkTransform").getOrCreate()
 schema = StructType([
     StructField('ordernum', IntegerType(), True),
+    StructField('quant', IntegerType(), True),
     StructField('region', StringType(), True),
     StructField('store', StringType(), True),
     StructField('saledate', DateType(), True),
@@ -12,15 +13,11 @@ schema = StructType([
     StructField('item', StringType(), True),
     StructField('unitsold', IntegerType(), True),
     StructField('unitprice', IntegerType(), True),
-    StructField('employeeID', StringType(), True),
-    StructField('customerID', StringType(), True),
-    StructField('loyalty', BooleanType(), True),
-    StructField('firstpurchase', DateType(), True),
-    StructField('freq', IntegerType(), True),
+    StructField('employeeID', StringType(), True)
     ])
-df = spark.read.csv("abfs://files@<ADLS GEN2 STORAGE NAME>.dfs.core.windows.net/data/salesdata/*.csv", schema, header=True)
+df = spark.read.format("csv").schema(schema).option("quote", "\"").load("abfs://files@<ADLS GEN2 ACCOUNT NAME>.dfs.core.windows.net/data/hdinsight-sales-insights-etl/salesdata/*.csv")
 df = df.drop("employeeID").drop("ordernum")
 df = df.withColumn("revenue", col('unitsold')*col('unitprice'))
-df.write.format('csv').save("abfs://files@<ADLS GEN2 STORAGE NAME>.dfs.core.windows.net/transformed", mode="overwrite")
+df.write.format('csv').save("abfs://files@<ADLS GEN2 ACCOUNT NAME>.dfs.core.windows.net/transformed", mode="overwrite")
 
 spark.stop()
