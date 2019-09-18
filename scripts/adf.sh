@@ -89,8 +89,9 @@ echo "Folder structure created"
 
 # create the sparktransform.py file
 # replace <ADLS GEN2 STORAGE NAME> with actual name
-echo "Creating sparktransform file..."
+echo "Creating sparktransform and hive query files..."
 sed -i -e 's/<ADLS GEN2 STORAGE NAME>/'$ADLSGen2StorageName'/g' ./scripts/sparktransform.py
+sed -i -e 's/<ADLS GEN2 STORAGE NAME>/'$ADLSGen2StorageName'/g' ./scripts/query.hql
 
 cat ./scripts/sparktransform.py | curl -i -X PATCH -H "x-ms-version: 2018-11-09" -H "Authorization: Bearer $ACCESS_TOKEN" --data-binary @- "https://$ADLSGen2StorageName.dfs.core.windows.net/files/adf/sparktransform.py?action=append&position=0"
 curl -i -H "x-ms-version: 2018-11-09" -H "Authorization: Bearer $ACCESS_TOKEN" "https://$ADLSGen2StorageName.dfs.core.windows.net/files/adf/sparktransform.py"

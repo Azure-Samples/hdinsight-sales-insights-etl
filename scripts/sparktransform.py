@@ -15,7 +15,7 @@ schema = StructType([
     StructField('unitprice', IntegerType(), True),
     StructField('employeeID', StringType(), True)
     ])
-df = spark.read.format("csv").schema(schema).option("quote", "\"").load("abfs://files@<ADLS GEN2 STORAGE NAME>.dfs.core.windows.net/data/hdinsight-sales-insights-etl/salesdata/*.csv")
+df = spark.read.format("csv").schema(schema).option("quote", "\"").load("abfs://files@<ADLS GEN2 STORAGE NAME>.dfs.core.windows.net/data/salesdata/*.csv")
 df = df.drop("employeeID").drop("ordernum")
 df = df.withColumn("revenue", col('unitsold')*col('unitprice'))
 df.write.format('csv').save("abfs://files@<ADLS GEN2 STORAGE NAME>.dfs.core.windows.net/transformed", mode="overwrite")
