@@ -1,0 +1,347 @@
+{  
+    "$schema":"http://schema.management.azure.com/schemas/2015-01-01-preview/deploymentTemplate.json#",
+    "contentVersion":"0.9.0.0",
+  "parameters": {
+    "sparkClusterLoginUserName": {
+      "type": "string",
+      "defaultValue": "admin",
+      "metadata": {
+        "description": "These credentials can be used to submit jobs to the cluster and to log into cluster dashboards."
+      }
+    },
+    "sparkClusterLoginPassword": {
+      "type": "securestring",
+      "defaultValue": "Thisisapassword1",
+      "metadata": {
+        "description": "The password must be at least 10 characters in length and must contain at least one digit, one non-alphanumeric character, and one upper or lower case letter."
+      }
+    },
+    "sparkClusterVersion": {
+      "type": "string",
+      "defaultValue": "4.0",
+      "metadata": {
+        "description": "HDInsight cluster version."
+      }
+    },
+    "sparkClusterWorkerNodeCount": {
+      "type": "int",
+      "defaultValue": 4,
+      "metadata": {
+        "description": "The number of nodes in the HDInsight cluster."
+      }
+    },
+    "sparkClusterKind": {
+      "type": "string",
+      "defaultValue": "SPARK",
+      "metadata": {
+        "description": "The type of the HDInsight cluster to create."
+      }
+    },
+    "sparksshUserName": {
+      "type": "string",
+      "defaultValue": "sshuser",
+      "metadata": {
+        "description": "These credentials can be used to remotely access the cluster."
+      }
+    },
+    "sparksshPassword": {
+      "type": "securestring",
+      "defaultValue": "Thisisapassword1",
+      "metadata": {
+        "description": "The password must be at least 10 characters in length and must contain at least one digit, one non-alphanumeric character, and one upper or lower case letter."
+      }
+    },
+    "llapClusterLoginUserName": {
+      "type": "string",
+      "defaultValue": "admin",
+      "metadata": {
+        "description": "These credentials can be used to submit jobs to the cluster and to log into cluster dashboards."
+      }
+    },
+    "llapClusterLoginPassword": {
+      "type": "securestring",
+      "defaultValue": "Thisisapassword1",
+      "metadata": {
+        "description": "The password must be at least 10 characters in length and must contain at least one digit, one non-alphanumeric character, and one upper or lower case letter."
+      }
+    },
+    "llapclusterVersion": {
+      "type": "string",
+      "defaultValue": "3.6",
+      "metadata": {
+        "description": "HDInsight cluster version."
+      }
+    },
+    "llapclusterWorkerNodeCount": {
+      "type": "int",
+      "defaultValue": 4,
+      "metadata": {
+        "description": "The number of nodes in the HDInsight cluster."
+      }
+    },
+    "llapclusterKind": {
+      "type": "string",
+      "defaultValue": "INTERACTIVEHIVE",
+      "metadata": {
+        "description": "The type of the HDInsight cluster to create."
+      }
+    },
+    "llapsshUserName": {
+      "type": "string",
+      "defaultValue": "sshuser",
+      "metadata": {
+        "description": "These credentials can be used to remotely access the cluster."
+      }
+    },
+    "llapsshPassword": {
+      "type": "securestring",
+      "defaultValue": "Thisisapassword1",
+      "metadata": {
+        "description": "The password must be at least 10 characters in length and must contain at least one digit, one non-alphanumeric character, and one upper or lower case letter."
+      }
+    },
+    "managedIdentityName": {
+      "type": "string"
+    },
+    "blobStorageName": {
+      "type": "string"
+    },
+    "ADLSGen2StorageName": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "sparkClusterName": "[concat('spark-', uniqueString(resourceGroup().id))]",
+    "llapClusterName": "[concat('llap-', uniqueString(resourceGroup().id))]",
+    "networkSecurityGroup": {
+      "name": "[concat('nsg-', uniqueString(resourceGroup().id))]"
+    },
+    "vNet": {
+      "name": "[concat('vnet-', uniqueString(resourceGroup().id))]",
+      "addressSpacePrefix": "10.0.0.0/16",
+      "subnetName": "subnet1",
+      "subnetPrefix": "10.0.0.0/24",
+      "id": "[resourceId('Microsoft.Network/virtualNetworks', concat('vnet-', uniqueString(resourceGroup().id)))]",
+      "subnet": "[concat(resourceId('Microsoft.Network/virtualNetworks', concat('vnet-', uniqueString(resourceGroup().id))), '/subnets/subnet1')]"
+    }
+  },
+    "resources":[
+       {  
+          "type":"Microsoft.Network/virtualNetworks",
+          "name":"[variables('vNet').name]",
+          "apiVersion":"2016-03-30",
+          "location":"[resourceGroup().location]",
+          "properties":{  
+             "addressSpace":{  
+                "addressPrefixes":[  
+                   "[variables('vNet').addressSpacePrefix]"
+                ]
+             },
+             "subnets":[  
+                {  
+                   "name":"[variables('vNet').subnetName]",
+                   "properties":{  
+                      "addressPrefix":"[variables('vNet').subnetPrefix]"
+                   }
+                }
+             ]
+          }
+       },
+       {  
+          "apiVersion":"2015-03-01-preview",
+          "name":"[variables('sparkClusterName')]",
+          "type":"Microsoft.HDInsight/clusters",
+          "location":"[resourceGroup().location]",
+        "dependsOn": [
+          "[concat('Microsoft.Network/virtualNetworks/',variables('vNet').name)]"
+        ],
+          "properties":{  
+             "clusterVersion":"[parameters('sparkClusterVersion')]",
+             "osType":"Linux",
+             "tier":"standard",
+             "clusterDefinition":{  
+                "kind":"[parameters('sparkClusterKind')]",
+                "componentVersion":{  
+                   "Spark":"2.3"
+                },
+                "configurations":{  
+                   "gateway":{  
+                      "restAuthCredential.isEnabled":true,
+                      "restAuthCredential.username":"[parameters('sparkClusterLoginUserName')]",
+                      "restAuthCredential.password":"[parameters('sparkClusterLoginPassword')]"
+                   }
+                }
+             },
+             "storageProfile":{  
+                "storageaccounts":[
+                  {
+                    "name": "[concat(parameters('ADLSGen2StorageName'), '.dfs.core.windows.net')]",
+                    "isDefault": true,
+                    "fileSystem": "[concat(variables('sparkClusterName'), '-2019-01-23t20-00-14-186z')]",
+                    "resourceID": "[concat(resourceGroup().id, '/providers/Microsoft.Storage/storageAccounts/', parameters('ADLSGen2StorageName'))]",
+                    "msiResourceId": "[concat(resourceGroup().id, '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/', parameters('managedIdentityName'))]"
+                  }
+                ]
+             },
+             "computeProfile":{  
+                "roles":[  
+                   {  
+                      "autoscale":null,
+                      "name":"headnode",
+                      "minInstanceCount":1,
+                      "targetInstanceCount":2,
+                      "hardwareProfile":{  
+                         "vmSize":"Standard_D12_V2"
+                      },
+                      "osProfile":{  
+                         "linuxOperatingSystemProfile":{  
+                            "username":"[parameters('sparksshUserName')]",
+                            "password":"[parameters('sparksshPassword')]"
+                         }
+                      },
+                      "virtualNetworkProfile":{  
+                         "id":"[variables('vNet').id]",
+                         "subnet":"[variables('vNet').subnet]"
+                      },
+                      "scriptActions":[  
+ 
+                      ]
+                   },
+                   {  
+                      "autoscale":null,
+                      "name":"workernode",
+                      "targetInstanceCount":4,
+                      "hardwareProfile":{  
+                         "vmSize":"Standard_D13_V2"
+                      },
+                      "osProfile":{  
+                         "linuxOperatingSystemProfile":{  
+                            "username":"[parameters('sparksshUserName')]",
+                            "password":"[parameters('sparksshPassword')]"
+                         }
+                      },
+                      "virtualNetworkProfile":{  
+                         "id":"[variables('vNet').id]",
+                         "subnet":"[variables('vNet').subnet]"
+                      },
+                      "scriptActions":[  
+ 
+                      ]
+                   }
+                ]
+             }
+          },
+          "identity":{  
+             "type":"UserAssigned",
+            "userAssignedIdentities": {
+              "[concat(resourceGroup().id, '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/', parameters('managedIdentityName'))]": {
+
+              }
+            }
+          }
+       },
+       {  
+          "apiVersion":"2018-06-01-preview",
+          "name":"[variables('llapclusterName')]",
+          "type":"Microsoft.HDInsight/clusters",
+          "location":"[resourceGroup().location]",
+        "dependsOn": [
+          "[concat('Microsoft.Network/virtualNetworks/',variables('vNet').name)]"
+        ],
+          "properties":{  
+             "clusterVersion":"[parameters('llapclusterVersion')]",
+             "osType":"Linux",
+             "tier":"standard",
+             "clusterDefinition":{  
+                "kind":"[parameters('llapclusterKind')]",
+                "componentVersion":{  
+                   "InteractiveHive":"2.1"
+                },
+                "configurations":{  
+                   "gateway":{  
+                      "restAuthCredential.isEnabled":true,
+                      "restAuthCredential.username":"[parameters('llapClusterLoginUserName')]",
+                      "restAuthCredential.password":"[parameters('llapClusterLoginPassword')]"
+                   }
+                }
+             },
+             "storageProfile":{  
+                "storageaccounts":[
+                  {
+                    "name": "[concat(parameters('ADLSGen2StorageName'), '.dfs.core.windows.net')]",
+                    "isDefault": true,
+                    "fileSystem": "[concat(variables('llapClusterName'), '-2019-01-23t20-00-14-186z')]",
+                    "resourceID": "[concat(resourceGroup().id, '/providers/Microsoft.Storage/storageAccounts/', parameters('ADLSGen2StorageName'))]",
+                    "msiResourceId": "[concat(resourceGroup().id, '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/', parameters('managedIdentityName'))]"
+                  }
+                ]
+             },
+             "computeProfile":{  
+                "roles":[  
+                   {  
+                      "autoscale":null,
+                      "name":"headnode",
+                      "minInstanceCount":1,
+                      "targetInstanceCount":2,
+                      "hardwareProfile":{  
+                         "vmSize":"Standard_D13_V2"
+                      },
+                      "osProfile":{  
+                         "linuxOperatingSystemProfile":{  
+                            "username":"[parameters('llapsshUserName')]",
+                            "password":"[parameters('llapsshPassword')]"
+                         }
+                      },
+                      "virtualNetworkProfile":{  
+                         "id":"[variables('vNet').id]",
+                         "subnet":"[variables('vNet').subnet]"
+                      },
+                      "scriptActions":[  
+ 
+                      ]
+                   },
+                   {  
+                      "autoscale":null,
+                      "name":"workernode",
+                      "targetInstanceCount":4,
+                      "hardwareProfile":{  
+                         "vmSize":"Standard_D13_V2"
+                      },
+                      "osProfile":{  
+                         "linuxOperatingSystemProfile":{  
+                            "username":"[parameters('llapsshUserName')]",
+                            "password":"[parameters('llapsshPassword')]"
+                         }
+                      },
+                      "virtualNetworkProfile":{  
+                         "id":"[variables('vNet').id]",
+                         "subnet":"[variables('vNet').subnet]"
+                      },
+                      "scriptActions":[  
+ 
+                      ]
+                   }
+                ]
+             }
+          },
+          "identity":{  
+             "type":"UserAssigned",
+            "userAssignedIdentities": {
+              "[concat(resourceGroup().id, '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/', parameters('managedIdentityName'))]": {
+
+              }
+            }
+          }
+       }
+    ],
+  "outputs": {
+    "sparkClusterName": {
+      "value": "[variables('sparkClusterName')]",
+      "type": "string"
+    },
+    "llapClusterName": {
+      "value": "[variables('llapClusterName')]",
+      "type": "string"
+    }
+  }
+ }

@@ -44,8 +44,14 @@
     "llapsshPassword": {
       "value": "Thisisapassword1"
     },
-    "roleNameGuid": {
-      "value": "[newGuid()]"
+    "managedIdentityName": {
+      "value": "InsertActualValue"
+    },
+    "blobStorageName": {
+      "value": "InsertActualValue"
+    },
+    "ADLSGen2StorageName": {
+      "value": "InsertActualValue"
     }
   }
 }
