@@ -3,29 +3,30 @@ echo "Creating service principal"
 
 subscriptionId=$(az account show | jq -r '.id')
 
-if [ -z "$resourceGroup" ]
+if [[ $# -ne 3 ]]
 then 
     echo "Please input the name of your resource group here"
     read resourceGroup
-fi
-
-if [ -z "$ADLSGen2StorageName" ]
-then 
     echo "Please input the name of your ADLS Gen2 Storage Account. Here are the storage accounts in this resource group."
     az resource list --resource-group $resourceGroup --resource-type Microsoft.Storage/storageAccounts | jq '.[].name'
     read ADLSGen2StorageName
-fi
-
-if [ -z "$blobStorageName" ]
-then 
     echo "Please input the name of your Blob Storage Account. Here are the storage accounts in this resource group."
     az resource list --resource-group $resourceGroup --resource-type Microsoft.Storage/storageAccounts | jq '.[].name'
     read blobStorageName
+else
+	resourceGroup=$1
+	ADLSGen2StorageName=$2
+	blobStorageName=$3
 fi
 
 az ad sp create-for-rbac --role "Storage Blob Data Contributor" --scope \
     "subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.Storage/storageAccounts/$ADLSGen2StorageName" \
     > serviceprincipal.json
+
+servicePrincipal=$(cat serviceprincipal.json | jq -r '.name')
+
+echo "Service principal" $servicePrincipal created
+echo ""
 
 CLIENT_ID=$(cat serviceprincipal.json | jq -r ".appId")
 CLIENT_SECRET=$(cat serviceprincipal.json | jq -r ".password")
@@ -52,6 +53,10 @@ then
     echo "Unable to obtain ACCESS_TOKEN"
     exit 1
 fi 
+
+echo "Access token obtained"
+echo ""
+
 # create files FS
 # While loop to give role assignment time to propagate. 
 # Continue trying to create FileSystem until the role assignment is successful
@@ -71,6 +76,7 @@ else
     echo "Unable to create FileSystem" 
     exit 1
 fi
+echo ""
 
 curl -i -X PATCH -H "x-ms-version: 2018-11-09" -H "content-length: 0" -H "x-ms-acl: user::rwx,group::r-x,other::--x,default:user::rwx,default:group::r-x,default:other::--x" -H "Authorization: Bearer $ACCESS_TOKEN" "https://$ADLSGen2StorageName.dfs.core.windows.net/files/?action=setAccessControl"
 
@@ -86,6 +92,7 @@ curl -i -X PUT -H "x-ms-version: 2018-11-09" -H "content-length: 0" -H "Authoriz
 curl -i -X PUT -H "x-ms-version: 2018-11-09" -H "content-length: 0" -H "Authorization: Bearer $ACCESS_TOKEN" "https://$ADLSGen2StorageName.dfs.core.windows.net/files/adf/logs?resource=directory"
 curl -i -X PUT -H "x-ms-version: 2018-11-09" -H "content-length: 0" -H "Authorization: Bearer $ACCESS_TOKEN" "https://$ADLSGen2StorageName.dfs.core.windows.net/files/adf/sparktransform.py?resource=file"
 echo "Folder structure created" 
+echo ""
 
 # create the sparktransform.py file
 # replace <ADLS GEN2 STORAGE NAME> with actual name
@@ -103,19 +110,25 @@ az storage account keys list \
     --account-name $ADLSGen2StorageName \
     --resource-group $resourceGroup > adlskeys.json
 echo "ADLS Key obtained..."
+echo ""
+
 az storage account keys list \
     --account-name $blobStorageName \
     --resource-group $resourceGroup > blobkeys.json
 echo "Blob key obtained..."
+echo ""
+
 adlskey=$(cat adlskeys.json | jq -r '.[0].value')
 blobkey=$(cat blobkeys.json | jq -r '.[0].value')
 
 echo "Deploying ADF..."
-az group deployment create --name "ADFDeployment"$resourceGroup \
+az deployment group create --name "ADFDeployment" \
     --resource-group $resourceGroup \
-    --template-file ./templates/adftemplate.json \
+    --template-file ./templates/adftemplate.json > resourcesoutputs_adf.json \
     --parameters AzureDataLakeStorage1_accountKey=$adlskey AzureBlobStorage1_accountKey=$blobkey
-echo "ADF deployed"
-rm serviceprincipal.json
+
+factoryName=$(cat resourcesoutputs_adf.json | jq -r '.properties.outputs.factoryName.value')
+echo "Data Factory" $factoryName deployed
+
 rm blobkeys.json
 rm adlskeys.json
